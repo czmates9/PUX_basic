@@ -1,0 +1,107 @@
+@model ScanViewModel
+
+@{
+    ViewData["Title"] = "Analýza adresáře";
+}
+
+<section class="card">
+    <h1>Analýza změn v adresáři</h1>
+    <p class="muted">
+        Program při prvním spuštění vytvoří snapshot adresáře.
+        Při dalším spuštění vypíše nové, změněné a odstraněné položky podle zadání.
+    </p>
+
+    <form asp-action="Index" method="post" class="scan-form">
+        @Html.AntiForgeryToken()
+
+        <label asp-for="DirectoryPath"></label>
+        <input asp-for="DirectoryPath" placeholder="Např. C:\Temp\PUXTest" />
+        <span asp-validation-for="DirectoryPath" class="validation"></span>
+
+        <button type="submit">Spustit analýzu</button>
+    </form>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <div>@error.ErrorMessage</div>
+            }
+        </div>
+    }
+</section>
+
+@if (Model.Result is not null)
+{
+    <section class="card">
+        <h2>Výsledek analýzy</h2>
+
+        @if (Model.Result.IsFirstScan)
+        {
+            <p class="info">
+                Pro tento adresář byl vytvořen první snapshot. Bylo zaevidováno
+                @Model.Result.InitialFileCount souborů a @Model.Result.InitialDirectoryCount podadresářů.
+                Všechny soubory začínají verzí 1. Změny budou hlášeny při dalším spuštění.
+            </p>
+        }
+        else
+        {
+            <div class="summary-grid">
+                <div><span class="summary-number">@Model.Result.NewFiles.Count</span><span>nové soubory</span></div>
+                <div><span class="summary-number">@Model.Result.ChangedFiles.Count</span><span>změněné soubory</span></div>
+                <div><span class="summary-number">@Model.Result.DeletedFiles.Count</span><span>odstraněné soubory</span></div>
+                <div><span class="summary-number">@Model.Result.DeletedDirectories.Count</span><span>odstraněné podadresáře</span></div>
+            </div>
+
+            @if (!Model.Result.HasAnyChange)
+            {
+                <p class="success">Nebyly detekovány žádné změny.</p>
+            }
+
+            <h3>Nové soubory</h3>
+            @if (Model.Result.NewFiles.Any())
+            {
+                <table>
+                    <thead><tr><th>Soubor</th><th>Verze</th><th>Velikost</th></tr></thead>
+                    <tbody>
+                    @foreach (var file in Model.Result.NewFiles)
+                    {
+                        <tr><td>@file.RelativePath</td><td>@file.Version</td><td>@file.SizeInBytes B</td></tr>
+                    }
+                    </tbody>
+                </table>
+            }
+            else { <p class="muted">Žádné nové soubory.</p> }
+
+            <h3>Změněné soubory</h3>
+            @if (Model.Result.ChangedFiles.Any())
+            {
+                <table>
+                    <thead><tr><th>Soubor</th><th>Nová verze</th><th>Velikost</th></tr></thead>
+                    <tbody>
+                    @foreach (var file in Model.Result.ChangedFiles)
+                    {
+                        <tr><td>@file.RelativePath</td><td>@file.Version</td><td>@file.SizeInBytes B</td></tr>
+                    }
+                    </tbody>
+                </table>
+            }
+            else { <p class="muted">Žádné změněné soubory.</p> }
+
+            <h3>Odstraněné soubory</h3>
+            @if (Model.Result.DeletedFiles.Any())
+            {
+                <ul>@foreach (var file in Model.Result.DeletedFiles) { <li>@file</li> }</ul>
+            }
+            else { <p class="muted">Žádné odstraněné soubory.</p> }
+
+            <h3>Odstraněné podadresáře</h3>
+            @if (Model.Result.DeletedDirectories.Any())
+            {
+                <ul>@foreach (var directory in Model.Result.DeletedDirectories) { <li>@directory</li> }</ul>
+            }
+            else { <p class="muted">Žádné odstraněné podadresáře.</p> }
+        }
+    </section>
+}
